@@ -111,6 +111,11 @@ int main() {
             PalaX++;
         } // Usar hilos para el movimiento de la pala, ya que la lectura es un poco lenta
 
+        // Detección de colisión con la pala
+        if (bolaX >= PalaX && bolaX <= PalaX + 4 && bolaY == PalaY) {
+            dy = -dy; // Invertir la dirección vertical de la pelota
+        }
+
         // refesh de la pantalla
         refresh();
 
