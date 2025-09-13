@@ -13,7 +13,7 @@ struct bloque {
 
 
 // Tamaño del tablero o ventana
-const int ancho = 50;
+const int ancho = 57;
 const int alto = 20;
 
 // Objetos del juego
@@ -25,9 +25,9 @@ vector<bloque> bloques;
 
 // Inicializa bloques en filas
 void InicializarBloques() {
-    int X_inicial = 5;
-    int Y_inicial = 2;
-    int columnas = 10;
+    int X_inicial = 1;
+    int Y_inicial = 1;
+    int columnas = 14;
     int filas = 5;
     int espaciado = 4; 
 
@@ -53,7 +53,7 @@ void DibujarBloques() {
 
 // Dibuja la pala
 void DibujarPala() {
-    mvprintw(PalaY, PalaX, "=====");
+    mvprintw(PalaY, PalaX, "======");
 }
 
 // Dibuja la pelota
@@ -104,6 +104,13 @@ int main() {
         
         // Movimiento de la pala con teclado 
         int tecla = getch();
+
+        // Limpiar el búfer de entrada para evitar que se acumulen pulsaciones
+        if (tecla != ERR) {
+            while (getch() != ERR);
+        }
+
+
         if ((tecla == 'a' || tecla == 'A') && PalaX > 1) { // Mover a la izquierda y evitar que se salga del borde
             PalaX--;
         }
@@ -112,14 +119,14 @@ int main() {
         } // Usar hilos para el movimiento de la pala, ya que la lectura es un poco lenta
 
         // Detección de colisión con la pala
-        if (bolaX >= PalaX && bolaX <= PalaX + 4 && bolaY == PalaY) {
+        if (bolaX >= PalaX && bolaX <= PalaX + 6 && bolaY == PalaY) {
             dy = -dy; // Invertir la dirección vertical de la pelota
         }
         
         // Colisión con bloques
         for (auto &b : bloques) {
             if (!b.destruido) { // Colisión con el bloque
-                if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y) {
+                if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y + 1) {
                     b.destruido = true; 
                     dy = -dy;          
                     // actualizar puntaje 
