@@ -115,6 +115,17 @@ int main() {
         if (bolaX >= PalaX && bolaX <= PalaX + 4 && bolaY == PalaY) {
             dy = -dy; // Invertir la dirección vertical de la pelota
         }
+        
+        // Colisión con bloques
+        for (auto &b : bloques) {
+            if (!b.destruido) { // Colisión con el bloque
+                if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y) {
+                    b.destruido = true; 
+                    dy = -dy;          
+                    // actualizar puntaje 
+                }
+            }
+}
 
         // refesh de la pantalla
         refresh();
