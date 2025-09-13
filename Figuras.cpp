@@ -11,6 +11,7 @@ struct bloque {
     bool destruido;
 };
 
+
 // Tamaño del tablero o ventana
 const int ancho = 50;
 const int alto = 20;
@@ -65,6 +66,8 @@ int main() {
     // Inicializar ncurses
     initscr();
     noecho();
+    cbreak(); // Para que las entradas de teclado se lean
+    nodelay(stdscr, TRUE);
     curs_set(FALSE);
 
     // Inicializar objetos del juego
@@ -80,7 +83,7 @@ int main() {
     int dy = -1; 
 
 
-    int jugar = 1;
+    int jugar = 1; 
     while (jugar == 1) {
         clear();
 
@@ -98,12 +101,32 @@ int main() {
         DibujarBloques();
         DibujarPala();
         DibujarPelota();
+        
+        // Movimiento de la pala con teclado 
+        int tecla = getch();
+        if ((tecla == 'a' || tecla == 'A') && PalaX > 1) { // Mover a la izquierda y evitar que se salga del borde
+            PalaX--;
+        }
+        if ((tecla == 'd' || tecla == 'D') && PalaX < ancho - 6) { // Mover a la derecha
+            PalaX++;
+        } // Usar hilos para el movimiento de la pala, ya que la lectura es un poco lenta
 
         // refesh de la pantalla
         refresh();
 
+        // Actualizar posición de la pelota
+        bolaX += dx;
+        bolaY += dy;
+
+        // Rebotes contra bordes
+        if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
+        if (bolaY <= 1 || bolaY >= alto - 1) dy = -dy;
+        
+        
+
         // controlar la velocidad de refresh de la pantalla ahorita va aprox a 12 fps
-        usleep(80000); 
+        usleep(80000); // Se puede cambiar para la velocidad de la bola
+        // Pero si no se usan hilos en la pala, la pala también se ralentiza
     }
 
     endwin();
