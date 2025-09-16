@@ -4,27 +4,34 @@
 #include <string>
 
 using namespace std;
-// Estructura para los bloques
+
+// =====================
+// Estructura y variables del juego
+// =====================
 struct bloque {
     int x;
     int y;
     bool destruido;
 };
 
-
-// Tamaño del tablero o ventana
 const int ancho = 57;
 const int alto = 20;
 
-// Objetos del juego
 int PalaX;
 int PalaY;
 int bolaX; 
 int bolaY;
 vector<bloque> bloques;
 
+// Variable para ver los estados del programa
+
+enum Estado { MENU, INSTRUCCIONES, JUEGO, PUNTAJES, SALIR };
+
+// Funciones del juego
+
 // Inicializa bloques en filas
 void InicializarBloques() {
+    bloques.clear(); // reiniciar bloques
     int X_inicial = 1;
     int Y_inicial = 1;
     int columnas = 14;
@@ -42,35 +49,77 @@ void InicializarBloques() {
     }
 }
 
-// Dibuja los bloques
 void DibujarBloques() {
-    for (auto &bloques : bloques) {
-        if (!bloques.destruido) {
-            mvprintw(bloques.y, bloques.x, "[##]");
+    for (auto &b : bloques) {
+        if (!b.destruido) {
+            mvprintw(b.y, b.x, "[##]");
         }
     }
 }
 
-// Dibuja la pala
 void DibujarPala() {
     mvprintw(PalaY, PalaX, "======");
 }
 
-// Dibuja la pelota
 void DibujarPelota() {
     mvprintw(bolaY, bolaX, "O");
 }
 
-// control del juego
-int main() {
-    // Inicializar ncurses
-    initscr();
-    noecho();
-    cbreak(); // Para que las entradas de teclado se lean
-    nodelay(stdscr, TRUE);
-    curs_set(FALSE);
+//Menú principal
 
-    // Inicializar objetos del juego
+Estado MostrarMenu() {
+    clear();
+    mvprintw(5, 10, "=== BREAKOUT ASCII ===");
+    mvprintw(7, 10, "1. Iniciar partida");
+    mvprintw(8, 10, "2. Instrucciones");
+    mvprintw(9, 10, "3. Puntajes destacados");
+    mvprintw(10, 10, "4. Salir");
+    refresh();
+
+    int opcion;
+    while (true) {
+        opcion = getch();
+        switch (opcion) {
+            case '1': return JUEGO;
+            case '2': return INSTRUCCIONES;
+            case '3': return PUNTAJES;
+            case '4': return SALIR;
+        }
+    }
+}
+
+void MostrarInstrucciones() {
+    clear();
+    mvprintw(3, 5, "=== INSTRUCCIONES ===");
+    mvprintw(5, 5, "Objetivo: Romper todos los bloques con la pelota.");
+    mvprintw(7, 5, "Controles:");
+    mvprintw(8, 7, "A o <- : mover pala a la izquierda");
+    mvprintw(9, 7, "D o -> : mover pala a la derecha");
+    mvprintw(10, 7, "P      : pausar el juego");
+    mvprintw(11, 7, "Q      : salir al menu");
+    mvprintw(13, 5, "Elementos del juego:");
+    mvprintw(14, 7, "O      : pelota");
+    mvprintw(15, 7, "====== : pala");
+    mvprintw(16, 7, "[##]   : bloque");
+    mvprintw(18, 5, "Presiona cualquier tecla para volver al menu...");
+    refresh();
+    getch();
+}
+
+void MostrarPuntajes() {
+    clear();
+    mvprintw(5, 10, "=== PUNTAJES DESTACADOS ===");
+    mvprintw(7, 10, "Aqui se mostrara la tabla de puntajes...");
+    mvprintw(9, 10, "Presiona cualquier tecla para volver al menu");
+    refresh();
+    getch();
+}
+
+// =====================
+// Juego principal
+// =====================
+void IniciarJuego() {
+    // Inicializar objetos
     PalaX = ancho / 2;
     PalaY = alto - 2;
     bolaX = ancho / 2 + 2;
@@ -78,16 +127,14 @@ int main() {
 
     InicializarBloques();
 
-    // dirección inicial de la pelota
     int dx = 1;
     int dy = -1; 
+    bool jugando = true; 
 
-
-    int jugar = 1; 
-    while (jugar == 1) {
+    while (jugando) {
         clear();
 
-        // se dibujan los bordes
+        // Dibujar bordes
         for (int x = 0; x < ancho; x++) {
             mvprintw(0, x, "_");
             mvprintw(alto, x, "_");
@@ -101,55 +148,86 @@ int main() {
         DibujarBloques();
         DibujarPala();
         DibujarPelota();
-        
-        // Movimiento de la pala con teclado 
-        int tecla = getch();
 
-        // Limpiar el búfer de entrada para evitar que se acumulen pulsaciones
+        // Teclado
+        int tecla = getch();
         if (tecla != ERR) {
-            while (getch() != ERR);
+            while (getch() != ERR); // limpiar buffer
         }
 
-
-        if ((tecla == 'a' || tecla == 'A') && PalaX > 1) { // Mover a la izquierda y evitar que se salga del borde
+        if ((tecla == 'a' || tecla == 'A') && PalaX > 1) {
             PalaX--;
         }
-        if ((tecla == 'd' || tecla == 'D') && PalaX < ancho - 6) { // Mover a la derecha
+        if ((tecla == 'd' || tecla == 'D') && PalaX < ancho - 6) {
             PalaX++;
-        } // Usar hilos para el movimiento de la pala, ya que la lectura es un poco lenta
-
-        // Detección de colisión con la pala
-        if (bolaX >= PalaX && bolaX <= PalaX + 6 && bolaY == PalaY) {
-            dy = -dy; // Invertir la dirección vertical de la pelota
         }
-        
+        if (tecla == 'q' || tecla == 'Q') { // salir al menu
+            jugando = false;
+        }
+
+        // Colisión con pala
+        if (bolaX >= PalaX && bolaX <= PalaX + 6 && bolaY == PalaY) {
+            dy = -dy;
+        }
+
         // Colisión con bloques
         for (auto &b : bloques) {
-            if (!b.destruido) { // Colisión con el bloque
+            if (!b.destruido) {
                 if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y + 1) {
-                    b.destruido = true; 
-                    dy = -dy;          
-                    // actualizar puntaje 
+                    b.destruido = true;
+                    dy = -dy;
                 }
             }
-}
-
-        // refesh de la pantalla
-        refresh();
+        }
 
         // Actualizar posición de la pelota
         bolaX += dx;
         bolaY += dy;
 
-        // Rebotes contra bordes
+        // Rebotes
         if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
-        if (bolaY <= 1 || bolaY >= alto - 1) dy = -dy;
-        
-        
+        if (bolaY <= 1) dy = -dy;
+        if (bolaY >= alto - 1) {
+            jugando = false; // pelota cayó → fin de partida
+        }
 
-        // controlar la velocidad de refresh de la pantalla ahorita va aprox a 12 fps
-        usleep(80000); // Se puede cambiar para la velocidad de la bola
-        // Pero si no se usan hilos en la pala, la pala también se ralentiza
+        refresh();
+        usleep(80000); 
+    }
+}
+
+// =====================
+// Main principal
+// =====================
+int main() {
+    initscr();
+    noecho();
+    cbreak();
+    curs_set(FALSE);
+    nodelay(stdscr, TRUE);
+
+    Estado estado = MENU;
+
+    while (estado != SALIR) {
+        switch (estado) {
+            case MENU:
+                estado = MostrarMenu();
+                break;
+            case INSTRUCCIONES:
+                MostrarInstrucciones();
+                estado = MENU;
+                break;
+            case JUEGO:
+                IniciarJuego();
+                estado = MENU;
+                break;
+            case PUNTAJES:
+                MostrarPuntajes();
+                estado = MENU;
+                break;
+            default:
+                estado = SALIR;
+        }
     }
 
     endwin();
