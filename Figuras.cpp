@@ -23,11 +23,14 @@ int bolaX;
 int bolaY;
 vector<bloque> bloques;
 
-// Variable para ver los estados del programa
-
+// =====================
+// Estados del programa
+// =====================
 enum Estado { MENU, INSTRUCCIONES, JUEGO, PUNTAJES, SALIR };
 
+// =====================
 // Funciones del juego
+// =====================
 
 // Inicializa bloques en filas
 void InicializarBloques() {
@@ -65,7 +68,9 @@ void DibujarPelota() {
     mvprintw(bolaY, bolaX, "O");
 }
 
-//Menú principal
+// =====================
+// Pantallas del menú
+// =====================
 
 Estado MostrarMenu() {
     clear();
@@ -74,6 +79,7 @@ Estado MostrarMenu() {
     mvprintw(8, 10, "2. Instrucciones");
     mvprintw(9, 10, "3. Puntajes destacados");
     mvprintw(10, 10, "4. Salir");
+    mvprintw(12, 10, "Selecciona una opcion: ");
     refresh();
 
     int opcion;
@@ -84,6 +90,9 @@ Estado MostrarMenu() {
             case '2': return INSTRUCCIONES;
             case '3': return PUNTAJES;
             case '4': return SALIR;
+            default:
+                // Ignorar otras teclas
+                break;
         }
     }
 }
@@ -103,6 +112,9 @@ void MostrarInstrucciones() {
     mvprintw(16, 7, "[##]   : bloque");
     mvprintw(18, 5, "Presiona cualquier tecla para volver al menu...");
     refresh();
+    
+    // Limpiar cualquier entrada pendiente
+    flushinp();
     getch();
 }
 
@@ -112,6 +124,9 @@ void MostrarPuntajes() {
     mvprintw(7, 10, "Aqui se mostrara la tabla de puntajes...");
     mvprintw(9, 10, "Presiona cualquier tecla para volver al menu");
     refresh();
+    
+    // Limpiar cualquier entrada pendiente
+    flushinp();
     getch();
 }
 
@@ -152,7 +167,8 @@ void IniciarJuego() {
         // Teclado
         int tecla = getch();
         if (tecla != ERR) {
-            while (getch() != ERR); // limpiar buffer
+            // Limpiar buffer de entrada adicional
+            while (getch() != ERR); 
         }
 
         if ((tecla == 'a' || tecla == 'A') && PalaX > 1) {
@@ -204,24 +220,27 @@ int main() {
     noecho();
     cbreak();
     curs_set(FALSE);
-    nodelay(stdscr, TRUE);
 
     Estado estado = MENU;
 
     while (estado != SALIR) {
         switch (estado) {
             case MENU:
+                nodelay(stdscr, FALSE); // esperar entrada en el menú
                 estado = MostrarMenu();
                 break;
             case INSTRUCCIONES:
+                nodelay(stdscr, FALSE); // esperar entrada en instrucciones
                 MostrarInstrucciones();
                 estado = MENU;
                 break;
             case JUEGO:
+                nodelay(stdscr, TRUE); // no esperar en juego
                 IniciarJuego();
                 estado = MENU;
                 break;
             case PUNTAJES:
+                nodelay(stdscr, FALSE); // esperar entrada en puntajes
                 MostrarPuntajes();
                 estado = MENU;
                 break;
