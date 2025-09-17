@@ -1,7 +1,9 @@
 #include <ncurses.h>
 #include <unistd.h> 
 #include <vector>
+#include <map>
 #include <string>
+#include <algorithm>
 
 using namespace std;
 
@@ -22,6 +24,9 @@ int PalaY;
 int bolaX; 
 int bolaY;
 vector<bloque> bloques;
+
+map<string, int> puntajes;
+string jugadorActual;
 
 // =====================
 // Estados del programa
@@ -66,6 +71,21 @@ void DibujarPala() {
 
 void DibujarPelota() {
     mvprintw(bolaY, bolaX, "O");
+}
+
+string PedirNombreJugador() {
+    echo(); // habilitar entrada visible
+    curs_set(TRUE);
+
+    char buffer[50];
+    clear();
+    mvprintw(5, 10, "Ingresa tu nombre: ");
+    getnstr(buffer, 49);
+
+    noecho();
+    curs_set(FALSE);
+
+    return string(buffer);
 }
 
 // =====================
@@ -120,12 +140,26 @@ void MostrarInstrucciones() {
 
 void MostrarPuntajes() {
     clear();
-    mvprintw(5, 10, "=== PUNTAJES DESTACADOS ===");
-    mvprintw(7, 10, "Aqui se mostrara la tabla de puntajes...");
-    mvprintw(9, 10, "Presiona cualquier tecla para volver al menu");
+    mvprintw(3, 10, "=== PUNTAJES DESTACADOS ===");
+
+    // Pasar mapa a vector para ordenar
+    vector<pair<string,int>> lista(puntajes.begin(), puntajes.end());
+    sort(lista.begin(), lista.end(), [](auto &a, auto &b) {
+        return a.second > b.second;
+    });
+
+    int y = 5;
+    for (auto &p : lista) {
+        mvprintw(y++, 10, "%s - %d", p.first.c_str(), p.second);
+    }
+
+    if (lista.empty()) {
+        mvprintw(5, 10, "No hay puntajes registrados.");
+    }
+
+    mvprintw(y + 2, 10, "Presiona cualquier tecla para volver al menu...");
     refresh();
-    
-    // Limpiar cualquier entrada pendiente
+
     flushinp();
     getch();
 }
@@ -145,6 +179,7 @@ void IniciarJuego() {
     int dx = 1;
     int dy = -1; 
     bool jugando = true; 
+    int puntaje = 0;
 
     while (jugando) {
         clear();
@@ -163,6 +198,9 @@ void IniciarJuego() {
         DibujarBloques();
         DibujarPala();
         DibujarPelota();
+
+        // Mostrar puntaje actual
+        mvprintw(alto + 1, 5, "Jugador: %s  Puntaje: %d", jugadorActual.c_str(), puntaje);
 
         // Teclado
         int tecla = getch();
@@ -210,6 +248,10 @@ void IniciarJuego() {
         refresh();
         usleep(80000); 
     }
+    // Guardar puntaje si es mejor
+    if (puntajes.find(jugadorActual) == puntajes.end() || puntaje > puntajes[jugadorActual]) {
+        puntajes[jugadorActual] = puntaje;
+    }
 }
 
 // =====================
@@ -235,7 +277,9 @@ int main() {
                 estado = MENU;
                 break;
             case JUEGO:
-                nodelay(stdscr, TRUE); // no esperar en juego
+                nodelay(stdscr, FALSE); // no esperar en juego
+                jugadorActual = PedirNombreJugador();  // pedir nombre ANTES de iniciar juego
+                nodelay(stdscr, TRUE);  // no bloquear entrada en juego
                 IniciarJuego();
                 estado = MENU;
                 break;
