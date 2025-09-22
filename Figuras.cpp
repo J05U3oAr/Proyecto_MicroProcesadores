@@ -242,7 +242,8 @@ void IniciarJuego() {
         if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
         if (bolaY <= 1) dy = -dy;
         if (bolaY >= alto - 1) {
-            jugando = false; // pelota cayó → fin de partida
+            //jugando = false; // pelota cayó → fin de partida
+            dy = -dy;
         }
 
         refresh();
