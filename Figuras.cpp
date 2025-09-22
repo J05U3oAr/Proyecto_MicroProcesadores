@@ -7,9 +7,7 @@
 
 using namespace std;
 
-// =====================
-// Estructura y variables del juego
-// =====================
+// Estructura y variables para movimiento y desarrollo del juego
 struct bloque {
     int x;
     int y;
@@ -28,14 +26,10 @@ vector<bloque> bloques;
 map<string, int> puntajes;
 string jugadorActual;
 
-// =====================
-// Estados del programa
-// =====================
+//variables de estado para el menú
 enum Estado { MENU, INSTRUCCIONES, JUEGO, PUNTAJES, SALIR };
 
-// =====================
 // Funciones del juego
-// =====================
 
 // Inicializa bloques en filas
 void InicializarBloques() {
@@ -88,9 +82,7 @@ string PedirNombreJugador() {
     return string(buffer);
 }
 
-// =====================
 // Pantallas del menú
-// =====================
 
 Estado MostrarMenu() {
     clear();
@@ -164,9 +156,7 @@ void MostrarPuntajes() {
     getch();
 }
 
-// =====================
 // Juego principal
-// =====================
 void IniciarJuego() {
     // Inicializar objetos
     PalaX = ancho / 2;
@@ -255,9 +245,7 @@ void IniciarJuego() {
     }
 }
 
-// =====================
 // Main principal
-// =====================
 int main() {
     initscr();
     noecho();
