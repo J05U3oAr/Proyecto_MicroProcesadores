@@ -11,6 +11,14 @@ using namespace std;
 // =======================
 // Estructuras y variables
 // =======================
+// En esta sección presente, se definen las estructuras de datos y las variables globales
+// utilizadas en el juego. a continuación se describen en una lista los slementos clabe que hay dentro:
+// - Se define la estructura "bloque", que representa los bloques que deben destruirse.
+// - Se configuran constantes de dimensiones del campo de juego.
+// - Se almacenan posiciones de palas y pelota, su movimiento, puntajes y estados del juego.
+// - Se incluyen mapas para guardar los puntajes por jugador y por modo de juego.
+// - Se definen mutex y variables de condición para la correcta sincronización entre hilos.
+
 struct bloque {
     int x;
     int y;
@@ -55,6 +63,11 @@ enum Estado { MENU, INSTRUCCIONES, JUEGO, PUNTAJES, SALIR };
 // =======================
 // Funciones del juego
 // =======================
+// Esta sección contiene las funciones principales para la mecánica del juego:
+// - Inicialización y dibujo correcto de todos los bloques, palas y pelota.
+// - Captura del nombre del jugador.
+// Estas funciones son invocadas tanto por los hilos de ejecución como por la lógica
+// del juego principal para actualizar la pantalla y el estado de los elementos.
 
 void InicializarBloques() {
     bloques.clear(); 
@@ -134,6 +147,14 @@ string PedirNombreJugador() {
 // =======================
 // Pantallas del menú
 // =======================
+// Aquí se definen las diferentes pantallas que componen el menú principal:
+// - Menú inicial con opciones de juego, instrucciones, puntajes y salir.
+// - Pantalla de instrucciones con controles y objetivos.
+// - Visualización de puntajes destacados para cada modo de juego.
+// - Selección de cantidad de jugadores y velocidad de la partida.
+// - Pantalla de "Game Over" con las opciones de reintentar o volver al menú.
+// Estas pantallas utilizan la librería ncurses para mostrar interfaces interactivas para generar una mejor experiencia de usuario,
+// cada pantalla retorna el estado siguiente del juego según la interacción del usuario.
 
 Estado MostrarMenu() {
     const char *opciones[] = { 
@@ -462,6 +483,13 @@ Estado MostrarGameOver(const string &jug1, int punt1, const string &jug2, int pu
 // =======================
 // Hilos del juego
 // =======================
+// En esta sección se encuentran las funciones que representan cada hilo de ejecución:
+// - HiloInput: gestiona la entrada del teclado para controlar palas, pausa o salir.
+// - HiloPelota: gestiona la física de la pelota, sus rebotes y colisiones.
+// - HiloDibujo: refresca constantemente la pantalla con los elementos actualizados.
+// - HiloBloques: maneja las colisiones con los bloques y actualiza los puntajes.
+// Gracias a los mutex y variables de condición, se asegura la sincronización
+// entre hilos evitando conflictos de acceso a recursos compartidos.
 
 void* HiloInput(void* arg) {
     while (jugando) {
@@ -656,7 +684,14 @@ void* HiloBloques(void* arg) {
 
 // =======================
 // Juego principal
-// =======================
+// =======================}
+// La función IniciarJuego() prepara y ejecuta una partida:
+// - Inicializa posiciones de palas, pelota y bloques.
+// - Configura las variables de estado del juego (puntajes, pausa, etc.).
+// - Crea y lanza los hilos principales (input, pelota, dibujo y bloques).
+// - Espera a que los hilos terminen y actualiza puntajes globales al finalizar.
+// Finalmente, invoca la pantalla de "Game Over" para decidir el siguiente estado.
+
 Estado IniciarJuego() {
     Pala1X = ancho / 2;
     Pala1Y = alto - 2;
@@ -718,6 +753,12 @@ Estado IniciarJuego() {
 // =======================
 // Main
 // =======================
+// Punto de entrada del programa.
+// - Inicializa la librería ncurses y configura la interfaz (colores, teclado, etc.).
+// - Controla el bucle principal del juego, cambiando de estado según las pantallas
+//   (menú, instrucciones, partida, puntajes).
+// - Se mantiene en ejecución hasta que el jugador seleccione la opción de salir.
+
 int main() {
     initscr();
     noecho();
