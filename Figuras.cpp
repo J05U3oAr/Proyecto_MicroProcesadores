@@ -24,30 +24,33 @@ int Pala1X, Pala1Y;
 int Pala2X, Pala2Y;
 int bolaX; 
 int bolaY;
+int dx, dy;
 
+bool jugando = true;
+bool pausado = false;
 int puntaje1 = 0;
 int puntaje2 = 0;
 vector<bloque> bloques;
 
 int numJugadoresGlobal = 1;
-int ultimoJugador = 0; // 0 = ninguno, 1 = jugador1, 2 = jugador2
+int modoVelocidadGlobal = 0; // 0 = media, 1 = rápida
+int ultimoJugador = 0;
 
 string jugador1, jugador2;
-map<string, int> puntajesMedia;   // para un jugador, velocidad media
-map<string, int> puntajesRapida;  // para un jugador, velocidad rápida
-map<string, int> puntajes2Jug;    // para 2 jugadores
+map<string, int> puntajesMedia;   // 1 jugador velocidad media
+map<string, int> puntajesRapida;  // 1 jugador velocidad rápida
+map<string, int> puntajes2Jug;    // 2 jugadores
 
-// Mutex para proteger la pala y la pantalla
+// Mutex para proteger variables compartidas
 pthread_mutex_t mutexPala = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexBola = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexPantalla = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexBloques = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexPausa = PTHREAD_MUTEX_INITIALIZER;
 
-//variables de estado para el menú
+pthread_cond_t condPausa = PTHREAD_COND_INITIALIZER;
+
 enum Estado { MENU, INSTRUCCIONES, JUEGO, PUNTAJES, SALIR };
-
-// Variables de control
-bool juegoPausado = false;
-bool salirJuego = false;
-
 
 // =======================
 // Funciones del juego
@@ -73,6 +76,7 @@ void InicializarBloques() {
 }
 
 void DibujarBloques() {
+    pthread_mutex_lock(&mutexBloques);
     for (auto &b : bloques) {
         if (!b.destruido) {
             int filaColor = (b.y % 5) + 1; 
@@ -81,6 +85,7 @@ void DibujarBloques() {
             attroff(COLOR_PAIR(filaColor) | A_BOLD);
         }
     }
+    pthread_mutex_unlock(&mutexBloques);
 }
 
 void DibujarPalas() {
@@ -89,12 +94,10 @@ void DibujarPalas() {
     int x2 = Pala2X;
     pthread_mutex_unlock(&mutexPala);
 
-    // Jugador 1
     attron(COLOR_PAIR(6) | A_BOLD);
     mvprintw(Pala1Y, x1, "======");
     attroff(COLOR_PAIR(6) | A_BOLD);
 
-    // Jugador 2
     if (numJugadoresGlobal == 2) {
         attron(COLOR_PAIR(9) | A_BOLD);
         mvprintw(Pala2Y, x2, "======");
@@ -103,10 +106,14 @@ void DibujarPalas() {
 }
 
 void DibujarPelota() {
-    attron(COLOR_PAIR(7) | A_BOLD);
-    mvprintw(bolaY, bolaX, "O");
-    attroff(COLOR_PAIR(7) | A_BOLD);
+    pthread_mutex_lock(&mutexBola);
+    int x = bolaX;
+    int y = bolaY;
+    pthread_mutex_unlock(&mutexBola);
     
+    attron(COLOR_PAIR(7) | A_BOLD);
+    mvprintw(y, x, "O");
+    attroff(COLOR_PAIR(7) | A_BOLD);
 }
 
 string PedirNombreJugador() {
@@ -231,7 +238,6 @@ void MostrarPuntajes() {
     WINDOW *win = newwin(height, width, starty, startx);
     keypad(win, TRUE);
 
-    // Menú de selección de modo de puntajes
     while (true) {
         werase(win);
         box(win, 0, 0);
@@ -260,7 +266,7 @@ void MostrarPuntajes() {
         switch (tecla) {
             case KEY_UP: seleccion = (seleccion - 1 + numOpciones) % numOpciones; break;
             case KEY_DOWN: seleccion = (seleccion + 1) % numOpciones; break;
-            case '\n': goto MostrarLista; // salir del menú
+            case '\n': goto MostrarLista;
         }
     }
 
@@ -290,10 +296,6 @@ MostrarLista:
     flushinp();
     getch();
 }
-
-// =======================
-// Pantalla de selección de jugadores
-// =======================
 
 int MostrarSeleccionJugadores() {
     const char *opciones[] = { "1 Jugador", "2 Jugadores" };
@@ -339,15 +341,13 @@ int MostrarSeleccionJugadores() {
                 werase(selwin);
                 wrefresh(selwin);
                 delwin(selwin);
-                return seleccion + 1; // devuelve 1 o 2
+                return seleccion + 1;
         }
     }
 }
-// =======================
-// Pantalla de selección de modo un jugador
-// =======================
-int modoUnJugador() {
-    const char *opciones[] = { "Velocidad media", "Velocidad rápida" };
+
+int MostrarSeleccionVelocidad() {
+    const char *opciones[] = { "Velocidad media", "Velocidad rapida" };
     int seleccion = 0;
     int numOpciones = 2;
 
@@ -389,17 +389,13 @@ int modoUnJugador() {
                 werase(win);
                 wrefresh(win);
                 delwin(win);
-                return seleccion; // 0 = media, 1 = rápida
+                return seleccion;
         }
     }
 }
 
-
-// =======================
-// Pantalla de Game Over
-// =======================
-Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugador2, int puntaje2) {
-    const char *opciones[] = { "Reintentar", "Volver al menú" };
+Estado MostrarGameOver(const string &jug1, int punt1, const string &jug2, int punt2) {
+    const char *opciones[] = { "Reintentar", "Volver al menu" };
     int seleccion = 0;
     int numOpciones = 2;
 
@@ -408,7 +404,7 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
 
     int width = 40, height = 18;
     int startx = (ancho / 2) - (width / 2);
-    int starty = 5;
+    int starty = 2;
     WINDOW *gameoverwin = newwin(height, width, starty, startx);
     keypad(gameoverwin, TRUE);
 
@@ -416,8 +412,7 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
         werase(gameoverwin);
         box(gameoverwin, 0, 0);
 
-        // Dibujar "GAME OVER" grande dentro de la ventana
-        wattron(gameoverwin, COLOR_PAIR(1) | A_BOLD | A_BLINK);
+        wattron(gameoverwin, COLOR_PAIR(1) | A_BOLD);
         mvwprintw(gameoverwin, 1, 5, "  ____    _    __  __ _____");
         mvwprintw(gameoverwin, 2, 5, " / ___|  / \\  |  \\/  | ____|");
         mvwprintw(gameoverwin, 3, 5, "| |  _  / _ \\ | |\\/| |  _|");
@@ -428,21 +423,19 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
         mvwprintw(gameoverwin, 8, 5, " | | | | \\ \\ / /|  _| | |_) |");
         mvwprintw(gameoverwin, 9, 5, " | |_| |  \\ V / | |___|  _ <");
         mvwprintw(gameoverwin,10, 5, "  \\___/    \\_/  |_____|_| \\_\\");
-        wattroff(gameoverwin, COLOR_PAIR(1) | A_BOLD | A_BLINK);
+        wattroff(gameoverwin, COLOR_PAIR(1) | A_BOLD);
 
-        // Mostrar puntajes
-        mvwprintw(gameoverwin, 12, 2, "Jugador 1: %s - Puntaje: %d", jugador1.c_str(), puntaje1);
-        if (!jugador2.empty())
-            mvwprintw(gameoverwin, 13, 2, "Jugador 2: %s - Puntaje: %d", jugador2.c_str(), puntaje2);
+        mvwprintw(gameoverwin, 12, 2, "Jugador 1: %s - Puntaje: %d", jug1.c_str(), punt1);
+        if (!jug2.empty())
+            mvwprintw(gameoverwin, 13, 2, "Jugador 2: %s - Puntaje: %d", jug2.c_str(), punt2);
 
-        // Opciones
         for (int i = 0; i < numOpciones; i++) {
             if (i == seleccion) {
                 wattron(gameoverwin, A_REVERSE | COLOR_PAIR(9));
-                mvwprintw(gameoverwin, 15 + i, 2, "%s", opciones[i]);
+                mvwprintw(gameoverwin, 15 + i, 4, "%s", opciones[i]);
                 wattroff(gameoverwin, A_REVERSE | COLOR_PAIR(9));
             } else {
-                mvwprintw(gameoverwin, 15 + i, 2, "%s", opciones[i]);
+                mvwprintw(gameoverwin, 15 + i, 4, "%s", opciones[i]);
             }
         }
 
@@ -450,114 +443,147 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
 
         int tecla = wgetch(gameoverwin);
         switch (tecla) {
-            case KEY_UP: seleccion = (seleccion - 1 + numOpciones) % numOpciones; break;
-            case KEY_DOWN: seleccion = (seleccion + 1) % numOpciones; break;
+            case KEY_UP:
+                seleccion = (seleccion - 1 + numOpciones) % numOpciones;
+                break;
+            case KEY_DOWN:
+                seleccion = (seleccion + 1) % numOpciones;
+                break;
             case '\n':
                 werase(gameoverwin);
                 wrefresh(gameoverwin);
                 delwin(gameoverwin);
-                return (seleccion == 0) ? JUEGO : MENU;
+                if (seleccion == 0) return JUEGO;
+                else return MENU;
         }
     }
-
 }
 
 // =======================
-// Hilos de movimiento de las palas
+// Hilos del juego
 // =======================
-void* HiloPala1(void* arg) {
-    while (true) {
-        pthread_mutex_lock(&mutexPantalla);
-        int tecla = getch();
-        pthread_mutex_unlock(&mutexPantalla);
 
-        if (tecla != ERR) {
-            pthread_mutex_lock(&mutexPantalla);
-            while (getch() != ERR); // limpiar buffer
-            pthread_mutex_unlock(&mutexPantalla);
-            
-            pthread_mutex_lock(&mutexPala);
-            if ((tecla == 'a' || tecla == 'A') && Pala1X > 1) Pala1X--;
-            if ((tecla == 'd' || tecla == 'D') && Pala1X < ancho - 6) Pala1X++;
-            pthread_mutex_unlock(&mutexPala);
-
-            if (tecla == 'p' || tecla == 'P') juegoPausado = !juegoPausado;
-            if (tecla == 'q' || tecla == 'Q') salirJuego = true;
-        }
-        usleep(5000);
-    }
-    return nullptr;
-}
-void* HiloPala2(void* arg) {
-    while (true) {
-        pthread_mutex_lock(&mutexPantalla);
-        int tecla = getch();
-        pthread_mutex_unlock(&mutexPantalla);
-
-        if (tecla != ERR) {
-            pthread_mutex_lock(&mutexPantalla);
-            while (getch() != ERR); // limpiar buffer
-            pthread_mutex_unlock(&mutexPantalla);
-
-            pthread_mutex_lock(&mutexPala);
-            if (numJugadoresGlobal == 2) {
-                if ((tecla == KEY_LEFT) && Pala2X > 1) Pala2X--;
-                if ((tecla == KEY_RIGHT) && Pala2X < ancho - 6) Pala2X++;
-            }
-            pthread_mutex_unlock(&mutexPala);
-
-            if (tecla == 'p' || tecla == 'P') juegoPausado = !juegoPausado;
-            if (tecla == 'q' || tecla == 'Q') salirJuego = true;
-        }
-        usleep(5000);
-    }
-    return nullptr;
-}
-
-// =======================
-// Juego principal
-// =======================
-Estado IniciarJuego(int modo) {
-    // Jugador 1
-    Pala1X = ancho / 2;
-    Pala1Y = alto - 2;
-
-    // Jugador 2
-    if (numJugadoresGlobal == 2) {
-        Pala2X = ancho / 2;
-        Pala2Y = alto - 2;
-    }
-
-    // Pelota
-    bolaX = ancho / 2 + 2;
-    bolaY = alto - 3;
-
-    // Reiniciar puntajes
-    puntaje1 = 0;
-    puntaje2 = 0;
-
-    InicializarBloques();
-
-    int dx = 1;
-    int dy = -1; 
-    bool jugando = true; 
-    int puntaje = 0;
-
-    pthread_t hiloPala1, hiloPala2;
-    pthread_create(&hiloPala1, nullptr, HiloPala1, nullptr);
-    pthread_create(&hiloPala2, nullptr, HiloPala2, nullptr);
-
+void* HiloInput(void* arg) {
     while (jugando) {
-        if (salirJuego) break;
+        pthread_mutex_lock(&mutexPantalla);
+        int tecla = getch();
+        pthread_mutex_unlock(&mutexPantalla);
 
-        while (juegoPausado) {
-            usleep(100000); // espera mientras está pausado
-            pthread_mutex_lock(&mutexPantalla);
-            mvprintw(alto / 2, ancho / 2 - 5, "== PAUSA ==");
-            refresh();
-            pthread_mutex_unlock(&mutexPantalla);
+        if (tecla != ERR) {
+            if (tecla == 'p' || tecla == 'P') {
+                pthread_mutex_lock(&mutexPausa);
+                pausado = !pausado;
+                if (!pausado) {
+                    pthread_cond_broadcast(&condPausa);
+                }
+                pthread_mutex_unlock(&mutexPausa);
+            } else if (tecla == 'q' || tecla == 'Q') {
+                jugando = false;
+                pthread_cond_broadcast(&condPausa);
+                break;
+            } else {
+                pthread_mutex_lock(&mutexPausa);
+                bool estaPausado = pausado;
+                pthread_mutex_unlock(&mutexPausa);
+                
+                if (!estaPausado) {
+                    pthread_mutex_lock(&mutexPala);
+                    if ((tecla == 'a' || tecla == 'A') && Pala1X > 1) Pala1X--;
+                    if ((tecla == 'd' || tecla == 'D') && Pala1X < ancho - 6) Pala1X++;
+                    if (numJugadoresGlobal == 2) {
+                        if ((tecla == KEY_LEFT) && Pala2X > 1) Pala2X--;
+                        if ((tecla == KEY_RIGHT) && Pala2X < ancho - 6) Pala2X++;
+                    }
+                    pthread_mutex_unlock(&mutexPala);
+                }
+            }
+        }
+        usleep(1000);
+    }
+    return nullptr;
+}
+
+void* HiloPelota(void* arg) {
+    while (jugando) {
+        pthread_mutex_lock(&mutexPausa);
+        while (pausado && jugando) {
+            pthread_cond_wait(&condPausa, &mutexPausa);
+        }
+        pthread_mutex_unlock(&mutexPausa);
+
+        if (!jugando) break;
+
+        pthread_mutex_lock(&mutexBola);
+        int bx = bolaX;
+        int by = bolaY;
+        int ddx = dx;
+        int ddy = dy;
+        pthread_mutex_unlock(&mutexBola);
+
+        pthread_mutex_lock(&mutexPala);
+        int pala1Pos = Pala1X;
+        int pala2Pos = Pala2X;
+        pthread_mutex_unlock(&mutexPala);
+
+        if (bx >= pala1Pos && bx <= pala1Pos + 6 && by == Pala1Y) {
+            ddy = -ddy;
+            ultimoJugador = 1;
         }
 
+        if (numJugadoresGlobal == 2) {
+            if (bx >= pala2Pos && bx <= pala2Pos + 6 && by == Pala2Y + 1) {
+                ddy = -ddy;
+                ultimoJugador = 2;
+            }
+        }
+
+        pthread_mutex_lock(&mutexBloques);
+        for (auto &b : bloques) {
+            if (!b.destruido) {
+                if (bx >= b.x && bx <= b.x + 3 && by == b.y + 1) {
+                    b.destruido = true;
+                    ddy = -ddy;
+
+                    if (ultimoJugador == 1) puntaje1 += 10;
+                    else if (ultimoJugador == 2) puntaje2 += 10;
+                    break;
+                }
+            }
+        }
+        pthread_mutex_unlock(&mutexBloques);
+
+        bx += ddx;
+        by += ddy;
+
+        if (bx <= 1 || bx >= ancho - 1) ddx = -ddx;
+        if (by <= 1) ddy = -ddy;
+        if (by >= alto) {
+            jugando = false;
+            pthread_cond_broadcast(&condPausa);
+        }
+
+        pthread_mutex_lock(&mutexBola);
+        bolaX = bx;
+        bolaY = by;
+        dx = ddx;
+        dy = ddy;
+        pthread_mutex_unlock(&mutexBola);
+
+        int velocidad;
+        if (numJugadoresGlobal == 2) {
+            velocidad = 150000; // Más lenta para 2 jugadores
+        } else if (modoVelocidadGlobal == 1) {
+            velocidad = 80000;  // Rápida para 1 jugador
+        } else {
+            velocidad = 130000; // Media para 1 jugador
+        }
+        usleep(velocidad);
+    }
+    return nullptr;
+}
+
+void* HiloDibujo(void* arg) {
+    while (jugando) {
         pthread_mutex_lock(&mutexPantalla);
         clear();
 
@@ -576,79 +602,117 @@ Estado IniciarJuego(int modo) {
 
         mvprintw(alto + 1, 5, "J1: %d   J2: %d", puntaje1, puntaje2);
 
+        pthread_mutex_lock(&mutexPausa);
+        if (pausado) {
+            attron(COLOR_PAIR(2) | A_BOLD);
+            mvprintw(alto / 2, (ancho / 2) - 5, "|| PAUSA ||");
+            attroff(COLOR_PAIR(2) | A_BOLD);
+        }
+        pthread_mutex_unlock(&mutexPausa);
+
         refresh();
         pthread_mutex_unlock(&mutexPantalla);
 
-        // Colisión con pala
-        pthread_mutex_lock(&mutexPala);
-        int pala1Pos = Pala1X;
-        int pala2Pos = Pala2X;
-        pthread_mutex_unlock(&mutexPala);
+        usleep(50000);
+    }
+    return nullptr;
+}
 
-        // Jugador 1
-        if (bolaX >= pala1Pos && bolaX <= pala1Pos + 6 && bolaY == Pala1Y) {
-            dy = -dy;
-            ultimoJugador = 1;
-        }
+void* HiloBloques(void* arg) {
+    while (jugando) {
+        pthread_mutex_lock(&mutexBola);
+        int bx = bolaX;
+        int by = bolaY;
+        int ddx = dx;
+        int ddy = dy;
+        pthread_mutex_unlock(&mutexBola);
 
-        // Jugador 2
-        if (bolaX >= pala2Pos && bolaX <= pala2Pos + 6 && bolaY == Pala2Y + 1) {
-            dy = -dy;
-            ultimoJugador = 2;
-        }
-
-        // Colisión con bloques
+        pthread_mutex_lock(&mutexBloques);
         for (auto &b : bloques) {
             if (!b.destruido) {
-                if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y + 1) {
+                if (bx >= b.x && bx <= b.x + 3 && by == b.y + 1) {
                     b.destruido = true;
-                    dy = -dy;
+                    ddy = -ddy;
 
                     if (ultimoJugador == 1) puntaje1 += 10;
                     else if (ultimoJugador == 2) puntaje2 += 10;
+
+                    break;
                 }
             }
         }
+        pthread_mutex_unlock(&mutexBloques);
 
-        bolaX += dx;
-        bolaY += dy;
+        pthread_mutex_lock(&mutexBola);
+        dx = ddx;
+        dy = ddy;
+        bolaY = by;
+        pthread_mutex_unlock(&mutexBola);
 
-        if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
-        if (bolaY <= 1) dy = -dy;
-        //if (bolaY >= alto - 1) dy = -dy;
-        if (bolaY >= alto) jugando = false;
+        usleep(35000);
+    }
+    return nullptr;
+}
 
-        int velocidadPelota = 105000; // predeterminado
-        if (numJugadoresGlobal == 1) {
-            if (modo == 0) velocidadPelota = 105000; // media
-            else velocidadPelota = 50000;           // rápida
-        }
-        usleep(velocidadPelota);
+// =======================
+// Juego principal
+// =======================
+Estado IniciarJuego() {
+    Pala1X = ancho / 2;
+    Pala1Y = alto - 2;
+
+    if (numJugadoresGlobal == 2) {
+        Pala2X = ancho / 2;
+        Pala2Y = alto - 2;
     }
 
-    pthread_cancel(hiloPala1);
-    pthread_cancel(hiloPala2);
-    pthread_join(hiloPala1, nullptr);
-    pthread_join(hiloPala2, nullptr);
+    pthread_mutex_lock(&mutexBola);
+    bolaX = ancho / 2 + 2;
+    bolaY = alto - 3;
+    dx = 1;
+    dy = -1;
+    pthread_mutex_unlock(&mutexBola);
+
+    puntaje1 = 0;
+    puntaje2 = 0;
+
+    InicializarBloques();
+
+    jugando = true;
+    pausado = false;
+
+    pthread_t hiloInput, hiloPelota, hiloDibujo, hiloBloques;
+    pthread_create(&hiloInput, nullptr, HiloInput, nullptr);
+    pthread_create(&hiloPelota, nullptr, HiloPelota, nullptr);
+    pthread_create(&hiloDibujo, nullptr, HiloDibujo, nullptr);
+    pthread_create(&hiloBloques, nullptr, HiloBloques, nullptr);
+
+    pthread_join(hiloInput, nullptr);
+    pthread_join(hiloPelota, nullptr);
+    pthread_join(hiloDibujo, nullptr);
+    pthread_join(hiloBloques, nullptr);
 
     if (numJugadoresGlobal == 1) {
-        if (modo == 0) { // media
-            if (puntajesMedia.find(jugador1) == puntajesMedia.end() || puntaje1 > puntajesMedia[jugador1])
+        if (modoVelocidadGlobal == 0) {
+            if (puntajesMedia.find(jugador1) == puntajesMedia.end() || puntaje1 > puntajesMedia[jugador1]) {
                 puntajesMedia[jugador1] = puntaje1;
-        } else { // rápida
-            if (puntajesRapida.find(jugador1) == puntajesRapida.end() || puntaje1 > puntajesRapida[jugador1])
-            puntajesRapida[jugador1] = puntaje1;
+            }
+        } else {
+            if (puntajesRapida.find(jugador1) == puntajesRapida.end() || puntaje1 > puntajesRapida[jugador1]) {
+                puntajesRapida[jugador1] = puntaje1;
+            }
         }
-    } else { // 2 jugadores
-        if (puntajes2Jug.find(jugador1) == puntajes2Jug.end() || puntaje1 > puntajes2Jug[jugador1])
+    } else {
+        if (puntajes2Jug.find(jugador1) == puntajes2Jug.end() || puntaje1 > puntajes2Jug[jugador1]) {
             puntajes2Jug[jugador1] = puntaje1;
-        if (puntajes2Jug.find(jugador2) == puntajes2Jug.end() || puntaje2 > puntajes2Jug[jugador2])
+        }
+        if (puntajes2Jug.find(jugador2) == puntajes2Jug.end() || puntaje2 > puntajes2Jug[jugador2]) {
             puntajes2Jug[jugador2] = puntaje2;
+        }   
     }
 
     Estado siguiente = MostrarGameOver(jugador1, puntaje1, jugador2, puntaje2);
     return siguiente;
-
 }
 
 // =======================
@@ -660,7 +724,7 @@ int main() {
     cbreak();
     curs_set(FALSE);
     keypad(stdscr, TRUE);
-    nodelay(stdscr, TRUE); // entrada no bloqueante
+    nodelay(stdscr, TRUE);
 
     Estado estado = MENU;
 
@@ -691,6 +755,10 @@ int main() {
             case JUEGO: {
                 numJugadoresGlobal = MostrarSeleccionJugadores();
 
+                if (numJugadoresGlobal == 1) {
+                    modoVelocidadGlobal = MostrarSeleccionVelocidad();
+                }
+
                 nodelay(stdscr, FALSE);
                 jugador1 = PedirNombreJugador();
                 jugador2.clear();
@@ -698,12 +766,8 @@ int main() {
                     jugador2 = PedirNombreJugador();
 
                 nodelay(stdscr, TRUE);
-                int modo = 0;
-                if (numJugadoresGlobal == 1) {
-                    modo = modoUnJugador();
-                }
 
-                Estado siguiente = IniciarJuego(modo);
+                Estado siguiente = IniciarJuego();
 
                 if (siguiente == JUEGO) {
                     jugador1.clear();
@@ -728,7 +792,11 @@ int main() {
 
     endwin();
     pthread_mutex_destroy(&mutexPala);
+    pthread_mutex_destroy(&mutexBola);
     pthread_mutex_destroy(&mutexPantalla);
+    pthread_mutex_destroy(&mutexBloques);
+    pthread_mutex_destroy(&mutexPausa);
+    pthread_cond_destroy(&condPausa);
 
     return 0;
 }
