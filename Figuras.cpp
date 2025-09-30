@@ -92,34 +92,82 @@ string PedirNombreJugador() {
 // Pantallas del menú
 
 Estado MostrarMenu() {
+    const char *opciones[] = { 
+        "Iniciar partida", 
+        "Instrucciones", 
+        "Puntajes destacados", 
+        "Salir" 
+    };
+    int seleccion = 0;
+    int numOpciones = 4;
+
+    // SOLUCIÓN: Limpiar pantalla principal al entrar al menú
     clear();
-    attron(COLOR_PAIR(8) | A_BOLD);
-    mvprintw(5, 10, "=== BREAKOUT ASCII ===");
-    attroff(COLOR_PAIR(8) | A_BOLD);
-    mvprintw(7, 10, "1. Iniciar partida");
-    mvprintw(8, 10, "2. Instrucciones");
-    mvprintw(9, 10, "3. Puntajes destacados");
-    mvprintw(10, 10, "4. Salir");
-    mvprintw(12, 10, "Selecciona una opcion: ");
     refresh();
 
-    int opcion;
+    // Crear ventana del menú
+    int width = 40, height = 12;
+    int startx = (ancho / 2) - (width / 2);
+    int starty = 3;
+    WINDOW *menuwin = newwin(height, width, starty, startx);
+    keypad(menuwin, TRUE); // habilitar flechas
+
     while (true) {
-        opcion = getch();
-        switch (opcion) {
-            case '1': return JUEGO;
-            case '2': return INSTRUCCIONES;
-            case '3': return PUNTAJES;
-            case '4': return SALIR;
-            default:
-                // Ignorar otras teclas
+        werase(menuwin);   // limpiar ventana
+        box(menuwin, 0, 0); // redibujar borde
+
+        // Título
+        wattron(menuwin, COLOR_PAIR(8) | A_BOLD);
+        mvwprintw(menuwin, 1, (width/2) - 10, "=== BREAKOUT ASCII ===");
+        wattroff(menuwin, COLOR_PAIR(8) | A_BOLD);
+
+        // Opciones
+        for (int i = 0; i < numOpciones; i++) {
+            if (i == seleccion) {
+                wattron(menuwin, A_REVERSE | COLOR_PAIR(9));
+                mvwprintw(menuwin, 3 + i, 4, "%s", opciones[i]);
+                wattroff(menuwin, A_REVERSE | COLOR_PAIR(9));
+            } else {
+                mvwprintw(menuwin, 3 + i, 4, "%s", opciones[i]);
+            }
+        }
+
+        // Instrucción
+        wattron(menuwin, A_DIM);
+        mvwprintw(menuwin, height - 2, 2, "Usa flechas arriba, abajo y ENTER");
+        wattroff(menuwin, A_DIM);
+
+        wrefresh(menuwin);
+
+        int tecla = wgetch(menuwin);
+        switch (tecla) {
+            case KEY_UP: 
+                seleccion = (seleccion - 1 + numOpciones) % numOpciones;
                 break;
+            case KEY_DOWN:
+                seleccion = (seleccion + 1) % numOpciones;
+                break;
+            case '\n': // enter
+                // limpiar menú antes de salir
+                werase(menuwin);
+                wrefresh(menuwin);
+                delwin(menuwin);
+                clear(); 
+                refresh();
+                switch (seleccion) {
+                    case 0: return JUEGO;
+                    case 1: return INSTRUCCIONES;
+                    case 2: return PUNTAJES;
+                    case 3: return SALIR;
+                }
         }
     }
 }
 
+
 void MostrarInstrucciones() {
     clear();
+    attron(COLOR_PAIR(8) | A_BOLD);
     mvprintw(3, 5, "=== INSTRUCCIONES ===");
     mvprintw(5, 5, "Objetivo: Romper todos los bloques con la pelota.");
     mvprintw(7, 5, "Controles:");
@@ -127,11 +175,14 @@ void MostrarInstrucciones() {
     mvprintw(9, 7, "D o -> : mover pala a la derecha");
     mvprintw(10, 7, "P      : pausar el juego");
     mvprintw(11, 7, "Q      : salir al menu");
+    attroff(COLOR_PAIR(8) | A_BOLD);
+    attroff(COLOR_PAIR(9) | A_BOLD);
     mvprintw(13, 5, "Elementos del juego:");
     mvprintw(14, 7, "O      : pelota");
     mvprintw(15, 7, "====== : pala");
     mvprintw(16, 7, "[##]   : bloque");
     mvprintw(18, 5, "Presiona cualquier tecla para volver al menu...");
+    attroff(COLOR_PAIR(9) | A_BOLD);
     refresh();
     
     // Limpiar cualquier entrada pendiente
@@ -278,7 +329,8 @@ int main() {
     init_pair(7, COLOR_BLUE,    COLOR_BLACK);   // pelota
 
     // Textos del menú
-    init_pair(8, COLOR_CYAN,    COLOR_BLACK);
+    init_pair(8, COLOR_CYAN,    COLOR_BLACK); //parte 1
+    init_pair(9, COLOR_YELLOW,  COLOR_BLACK); //parte 2
 }
 
 
