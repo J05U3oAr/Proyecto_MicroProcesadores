@@ -223,6 +223,43 @@ void MostrarPuntajes() {
     getch();
 }
 
+void MostrarGameOver(int puntajeFinal) {
+    clear();
+    
+    // Dibujar "GAME OVER" grande y en rojo parpadeante
+    attron(COLOR_PAIR(1) | A_BOLD | A_BLINK);
+    mvprintw(alto / 2 - 2, (ancho / 2) - 14, "  ____    _    __  __ _____");
+    mvprintw(alto / 2 - 1, (ancho / 2) - 14, " / ___|  / \\  |  \\/  | ____|");
+    mvprintw(alto / 2,     (ancho / 2) - 14, "| |  _  / _ \\ | |\\/| |  _|");
+    mvprintw(alto / 2 + 1, (ancho / 2) - 14, "| |_| |/ ___ \\| |  | | |___");
+    mvprintw(alto / 2 + 2, (ancho / 2) - 14, " \\____/_/   \\_\\_|  |_|_____|");
+    
+    mvprintw(alto / 2 + 4, (ancho / 2) - 14, "   ___  __     _______ ____");
+    mvprintw(alto / 2 + 5, (ancho / 2) - 14, "  / _ \\ \\ \\   / / ____|  _ \\");
+    mvprintw(alto / 2 + 6, (ancho / 2) - 14, " | | | | \\ \\ / /|  _| | |_) |");
+    mvprintw(alto / 2 + 7, (ancho / 2) - 14, " | |_| |  \\ V / | |___|  _ <");
+    mvprintw(alto / 2 + 8, (ancho / 2) - 14, "  \\___/    \\_/  |_____|_| \\_\\");
+    attroff(COLOR_PAIR(1) | A_BOLD | A_BLINK);
+    
+    // Mostrar puntaje final
+    attron(COLOR_PAIR(8) | A_BOLD);
+    mvprintw(alto / 2 + 10, (ancho / 2) - 10, "Puntaje final: %d", puntajeFinal);
+    attroff(COLOR_PAIR(8) | A_BOLD);
+    
+    // Instrucción
+    attron(A_DIM);
+    mvprintw(alto / 2 + 12, (ancho / 2) - 25, "Presiona cualquier tecla para volver al menu...");
+    attroff(A_DIM);
+    
+    refresh();
+    
+    // Esperar a que presione una tecla
+    nodelay(stdscr, FALSE);
+    flushinp();
+    getch();
+    nodelay(stdscr, TRUE);
+}
+
 // =======================
 // Hilo de movimiento de la pala
 // =======================
@@ -350,6 +387,9 @@ void IniciarJuego() {
     if (puntajes.find(jugadorActual) == puntajes.end() || puntaje > puntajes[jugadorActual]) {
         puntajes[jugadorActual] = puntaje;
     }
+
+    // Mostrar pantalla de Game Over
+    MostrarGameOver(puntaje);
 }
 
 
