@@ -406,7 +406,7 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
     clear();
     refresh();
 
-    int width = 40, height = 10;
+    int width = 40, height = 18;
     int startx = (ancho / 2) - (width / 2);
     int starty = 5;
     WINDOW *gameoverwin = newwin(height, width, starty, startx);
@@ -416,23 +416,33 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
         werase(gameoverwin);
         box(gameoverwin, 0, 0);
 
-        wattron(gameoverwin, COLOR_PAIR(8) | A_BOLD);
-        mvwprintw(gameoverwin, 1, (width/2) - 5, "GAME OVER");
-        wattroff(gameoverwin, COLOR_PAIR(8) | A_BOLD);
+        // Dibujar "GAME OVER" grande dentro de la ventana
+        wattron(gameoverwin, COLOR_PAIR(1) | A_BOLD | A_BLINK);
+        mvwprintw(gameoverwin, 1, 5, "  ____    _    __  __ _____");
+        mvwprintw(gameoverwin, 2, 5, " / ___|  / \\  |  \\/  | ____|");
+        mvwprintw(gameoverwin, 3, 5, "| |  _  / _ \\ | |\\/| |  _|");
+        mvwprintw(gameoverwin, 4, 5, "| |_| |/ ___ \\| |  | | |___");
+        mvwprintw(gameoverwin, 5, 5, " \\____/_/   \\_\\_|  |_|_____|");
+        mvwprintw(gameoverwin, 6, 5, "   ___  __     _______ ____");
+        mvwprintw(gameoverwin, 7, 5, "  / _ \\ \\ \\   / / ____|  _ \\");
+        mvwprintw(gameoverwin, 8, 5, " | | | | \\ \\ / /|  _| | |_) |");
+        mvwprintw(gameoverwin, 9, 5, " | |_| |  \\ V / | |___|  _ <");
+        mvwprintw(gameoverwin,10, 5, "  \\___/    \\_/  |_____|_| \\_\\");
+        wattroff(gameoverwin, COLOR_PAIR(1) | A_BOLD | A_BLINK);
 
-        mvwprintw(gameoverwin, 3, 2, "Jugador 1: %s - Puntaje: %d", jugador1.c_str(), puntaje1);
-        if (!jugador2.empty()) {
-            mvwprintw(gameoverwin, 4, 2, "Jugador 2: %s - Puntaje: %d", jugador2.c_str(), puntaje2);
-        }
+        // Mostrar puntajes
+        mvwprintw(gameoverwin, 12, 2, "Jugador 1: %s - Puntaje: %d", jugador1.c_str(), puntaje1);
+        if (!jugador2.empty())
+            mvwprintw(gameoverwin, 13, 2, "Jugador 2: %s - Puntaje: %d", jugador2.c_str(), puntaje2);
 
-
+        // Opciones
         for (int i = 0; i < numOpciones; i++) {
             if (i == seleccion) {
                 wattron(gameoverwin, A_REVERSE | COLOR_PAIR(9));
-                mvwprintw(gameoverwin, 6 + i, 4, "%s", opciones[i]);
+                mvwprintw(gameoverwin, 15 + i, 2, "%s", opciones[i]);
                 wattroff(gameoverwin, A_REVERSE | COLOR_PAIR(9));
             } else {
-                mvwprintw(gameoverwin, 6 + i, 4, "%s", opciones[i]);
+                mvwprintw(gameoverwin, 15 + i, 2, "%s", opciones[i]);
             }
         }
 
@@ -440,20 +450,16 @@ Estado MostrarGameOver(const string &jugador1, int puntaje1, const string &jugad
 
         int tecla = wgetch(gameoverwin);
         switch (tecla) {
-            case KEY_UP:
-                seleccion = (seleccion - 1 + numOpciones) % numOpciones;
-                break;
-            case KEY_DOWN:
-                seleccion = (seleccion + 1) % numOpciones;
-                break;
+            case KEY_UP: seleccion = (seleccion - 1 + numOpciones) % numOpciones; break;
+            case KEY_DOWN: seleccion = (seleccion + 1) % numOpciones; break;
             case '\n':
                 werase(gameoverwin);
                 wrefresh(gameoverwin);
                 delwin(gameoverwin);
-                if (seleccion == 0) return JUEGO; // Reintentar
-                else return MENU;                 // Volver al menú
+                return (seleccion == 0) ? JUEGO : MENU;
         }
     }
+
 }
 
 // =======================
@@ -535,7 +541,7 @@ Estado IniciarJuego(int modo) {
 
     while (jugando) {
         if (salirJuego) break;
-        
+
         while (juegoPausado) {
             usleep(100000); // espera mientras está pausado
             pthread_mutex_lock(&mutexPantalla);
