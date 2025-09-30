@@ -333,7 +333,7 @@ void IniciarJuego() {
         // Rebotes
         if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
         if (bolaY <= 1) dy = -dy;
-        if (bolaY >= alto - 1) {
+        if (bolaY >= alto) {
             jugando = false; // perder si cae al fondo
         }
 
