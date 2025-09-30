@@ -599,7 +599,7 @@ void* HiloPelota(void* arg) {
 
         int velocidad;
         if (numJugadoresGlobal == 2) {
-            velocidad = 165500; // Más lenta para 2 jugadores
+            velocidad = 180000; // Más lenta para 2 jugadores
         } else if (modoVelocidadGlobal == 1) {
             velocidad = 80000;  // Rápida para 1 jugador
         } else {
