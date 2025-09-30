@@ -472,6 +472,10 @@ void* HiloPala1(void* arg) {
         pthread_mutex_unlock(&mutexPantalla);
 
         if (tecla != ERR) {
+            pthread_mutex_lock(&mutexPantalla);
+            while (getch() != ERR); // limpiar buffer
+            pthread_mutex_unlock(&mutexPantalla);
+            
             pthread_mutex_lock(&mutexPala);
             if ((tecla == 'a' || tecla == 'A') && Pala1X > 1) Pala1X--;
             if ((tecla == 'd' || tecla == 'D') && Pala1X < ancho - 6) Pala1X++;
@@ -491,6 +495,10 @@ void* HiloPala2(void* arg) {
         pthread_mutex_unlock(&mutexPantalla);
 
         if (tecla != ERR) {
+            pthread_mutex_lock(&mutexPantalla);
+            while (getch() != ERR); // limpiar buffer
+            pthread_mutex_unlock(&mutexPantalla);
+
             pthread_mutex_lock(&mutexPala);
             if (numJugadoresGlobal == 2) {
                 if ((tecla == KEY_LEFT) && Pala2X > 1) Pala2X--;

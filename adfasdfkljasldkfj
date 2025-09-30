@@ -1,0 +1,26 @@
+[33mdc9c8a1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33mc04ef8c[m HEAD@{1}: rebase (finish): returning to refs/heads/main
+[33mc04ef8c[m HEAD@{2}: rebase (continue): hilo para la bola completo
+[33mdc9c8a1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{3}: pull --rebase (start): checkout dc9c8a1959040876448eee58adecf94296568681
+[33m4eb99b5[m HEAD@{4}: commit: hilo para la bola completo
+[33mdb7df8b[m HEAD@{5}: pull: Fast-forward
+[33m4638433[m HEAD@{6}: reset: moving to HEAD
+[33m4638433[m HEAD@{7}: pull: Fast-forward
+[33m8f51c11[m HEAD@{8}: reset: moving to HEAD
+[33m8f51c11[m HEAD@{9}: commit: ajuste en game over
+[33m9fe1d04[m HEAD@{10}: pull: Fast-forward
+[33m3ed0848[m HEAD@{11}: commit: hilo de la pala
+[33m760c661[m HEAD@{12}: pull: Fast-forward
+[33m9adbfc6[m HEAD@{13}: reset: moving to HEAD
+[33m9adbfc6[m HEAD@{14}: pull: Fast-forward
+[33m738b032[m HEAD@{15}: reset: moving to origin/main
+[33m738b032[m HEAD@{16}: pull: Fast-forward
+[33m76feb85[m HEAD@{17}: pull: Fast-forward
+[33mcbc3a48[m HEAD@{18}: commit: colisión con final del piso
+[33ma412f08[m HEAD@{19}: pull: Fast-forward
+[33m0627ee9[m HEAD@{20}: commit: prueb
+[33m9b9f798[m HEAD@{21}: commit: cambios en las dimensiones y colisiones
+[33m567a244[m HEAD@{22}: commit: colisión con bloques añadida
+[33mbcad7e5[m HEAD@{23}: commit: colisión con la pala
+[33mef6c736[m HEAD@{24}: commit: movimiento de la pala con a y d
+[33mfd8bc32[m HEAD@{25}: clone: from https://github.com/J05U3oAr/Proyecto_MicroProcesadores.git
