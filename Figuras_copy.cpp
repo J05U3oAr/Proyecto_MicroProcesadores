@@ -502,6 +502,46 @@ void* HiloDibujo(void* arg) {
     return nullptr;
 }
 
+void* HiloBloques(void* arg) {
+    while (jugando) {
+        pthread_mutex_lock(&mutexBola);
+        int bx = bolaX;
+        int by = bolaY;
+        int ddx = dx;
+        int ddy = dy;
+        pthread_mutex_unlock(&mutexBola);
+
+        pthread_mutex_lock(&mutexBloques);
+        for (auto &b : bloques) {
+            if (!b.destruido) {
+                // Chequea si la bola golpea un bloque
+                if (bx >= b.x && bx <= b.x + 3 && by == b.y + 1) {
+                    b.destruido = true;
+
+                    // Rebote vertical
+                    ddy = -ddy;
+
+                    // Actualizar puntaje según jugador
+                    if (ultimoJugador == 1) puntaje1 += 10;
+                    else if (ultimoJugador == 2) puntaje2 += 10;
+
+                    break; // solo un bloque destruido por ciclo
+                }
+            }
+        }
+        pthread_mutex_unlock(&mutexBloques);
+
+        pthread_mutex_lock(&mutexBola);
+        dx = ddx;
+        dy = ddy;
+        bolaY = by;
+        pthread_mutex_unlock(&mutexBola);
+
+        usleep(35000);
+    }
+    return nullptr;
+}
+
 // =======================
 // Juego principal
 // =======================
@@ -529,14 +569,16 @@ Estado IniciarJuego() {
     jugando = true;
     pausado = false;
 
-    pthread_t hiloInput, hiloPelota, hiloDibujo;
+    pthread_t hiloInput, hiloPelota, hiloDibujo, hiloBloques;
     pthread_create(&hiloInput, nullptr, HiloInput, nullptr);
     pthread_create(&hiloPelota, nullptr, HiloPelota, nullptr);
     pthread_create(&hiloDibujo, nullptr, HiloDibujo, nullptr);
+    pthread_create(&hiloBloques, nullptr, HiloBloques, nullptr);
 
     pthread_join(hiloInput, nullptr);
     pthread_join(hiloPelota, nullptr);
     pthread_join(hiloDibujo, nullptr);
+    pthread_join(hiloBloques, nullptr);
 
     if (numJugadoresGlobal == 1) {
         if (puntajes.find(jugador1) == puntajes.end() || puntaje1 > puntajes[jugador1]) {
