@@ -54,17 +54,24 @@ void InicializarBloques() {
 void DibujarBloques() {
     for (auto &b : bloques) {
         if (!b.destruido) {
+            int filaColor = (b.y % 5) + 1; // alterna entre 1..5
+            attron(COLOR_PAIR(filaColor) | A_BOLD);
             mvprintw(b.y, b.x, "[##]");
+            attroff(COLOR_PAIR(filaColor) | A_BOLD);
         }
     }
 }
 
 void DibujarPala() {
+    attron(COLOR_PAIR(6) | A_BOLD);
     mvprintw(PalaY, PalaX, "======");
+    attroff(COLOR_PAIR(6) | A_BOLD);
 }
 
 void DibujarPelota() {
+    attron(COLOR_PAIR(7) | A_BOLD);
     mvprintw(bolaY, bolaX, "O");
+    attroff(COLOR_PAIR(7) | A_BOLD);
 }
 
 string PedirNombreJugador() {
@@ -86,7 +93,9 @@ string PedirNombreJugador() {
 
 Estado MostrarMenu() {
     clear();
+    attron(COLOR_PAIR(8) | A_BOLD);
     mvprintw(5, 10, "=== BREAKOUT ASCII ===");
+    attroff(COLOR_PAIR(8) | A_BOLD);
     mvprintw(7, 10, "1. Iniciar partida");
     mvprintw(8, 10, "2. Instrucciones");
     mvprintw(9, 10, "3. Puntajes destacados");
@@ -253,6 +262,25 @@ int main() {
     curs_set(FALSE);
 
     Estado estado = MENU;
+
+    if (has_colors()) {
+    start_color();
+
+    // Bloques multicolor (filas distintas)
+    init_pair(1, COLOR_RED,     COLOR_BLACK);
+    init_pair(2, COLOR_YELLOW,  COLOR_BLACK);
+    init_pair(3, COLOR_GREEN,   COLOR_BLACK);
+    init_pair(4, COLOR_CYAN,    COLOR_BLACK);
+    init_pair(5, COLOR_MAGENTA, COLOR_BLACK);
+
+    // Pala y pelota
+    init_pair(6, COLOR_WHITE,   COLOR_BLACK);   // pala
+    init_pair(7, COLOR_BLUE,    COLOR_BLACK);   // pelota
+
+    // Textos del menú
+    init_pair(8, COLOR_CYAN,    COLOR_BLACK);
+}
+
 
     while (estado != SALIR) {
         switch (estado) {
