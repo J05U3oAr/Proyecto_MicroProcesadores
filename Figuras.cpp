@@ -35,9 +35,8 @@ int ultimoJugador = 0; // 0 = ninguno, 1 = jugador1, 2 = jugador2
 string jugador1, jugador2;
 map<string, int> puntajes;
 
-// Mutex para proteger variables compartidas
+// Mutex para proteger la pala y la pantalla
 pthread_mutex_t mutexPala = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexBola = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexPantalla = PTHREAD_MUTEX_INITIALIZER;
 
 //variables de estado para el menú
@@ -97,13 +96,8 @@ void DibujarPalas() {
 }
 
 void DibujarPelota() {
-    pthread_mutex_lock(&mutexBola);
-    int x = bolaX;
-    int y = bolaY;
-    pthread_mutex_unlock(&mutexBola);
-    
     attron(COLOR_PAIR(7) | A_BOLD);
-    mvprintw(y, x, "O");
+    mvprintw(bolaY, bolaX, "O");
     attroff(COLOR_PAIR(7) | A_BOLD);
     
 }
@@ -396,32 +390,9 @@ void* HiloPala2(void* arg) {
     }
     return nullptr;
 }
-void* HiloPala2(void* arg) {
-    while (true) {
-        pthread_mutex_lock(&mutexPantalla);
-        int tecla = getch();
-        pthread_mutex_unlock(&mutexPantalla);
-
-        if (tecla != ERR) {
-            pthread_mutex_lock(&mutexPala);
-            if (numJugadoresGlobal == 2) {
-                if ((tecla == KEY_LEFT) && Pala2X > 1) Pala2X--;
-                if ((tecla == KEY_RIGHT) && Pala2X < ancho - 6) Pala2X++;
-            }
-            pthread_mutex_unlock(&mutexPala);
-
-            if (tecla == 'q' || tecla == 'Q') {
-                jugando = false;
-                break;
-            }
-        }
-        usleep(5000);
-    }
-    return nullptr;
-}
 
 // =======================
-// Hilo de lógica de la pelota
+// Juego principal
 // =======================
 Estado IniciarJuego() {
     // Jugador 1
@@ -457,7 +428,6 @@ Estado IniciarJuego() {
         pthread_mutex_lock(&mutexPantalla);
         clear();
 
-        // para dibujar bordes
         for (int x = 0; x < ancho; x++) {
             mvprintw(0, x, "_");
             mvprintw(alto, x, "_");
@@ -467,7 +437,6 @@ Estado IniciarJuego() {
             mvprintw(y, ancho, "|");
         }
 
-        // se dibujan los elementos del juego
         DibujarBloques();
         DibujarPalas();
         DibujarPelota();
@@ -543,7 +512,6 @@ Estado IniciarJuego() {
 
 }
 
-
 // =======================
 // Main
 // =======================
@@ -618,7 +586,6 @@ int main() {
 
     endwin();
     pthread_mutex_destroy(&mutexPala);
-    pthread_mutex_destroy(&mutexBola);
     pthread_mutex_destroy(&mutexPantalla);
 
     return 0;
