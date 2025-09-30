@@ -33,7 +33,9 @@ int numJugadoresGlobal = 1;
 int ultimoJugador = 0; // 0 = ninguno, 1 = jugador1, 2 = jugador2
 
 string jugador1, jugador2;
-map<string, int> puntajes;
+map<string, int> puntajesMedia;   // para un jugador, velocidad media
+map<string, int> puntajesRapida;  // para un jugador, velocidad rápida
+map<string, int> puntajes2Jug;    // para 2 jugadores
 
 // Mutex para proteger la pala y la pantalla
 pthread_mutex_t mutexPala = PTHREAD_MUTEX_INITIALIZER;
@@ -41,6 +43,11 @@ pthread_mutex_t mutexPantalla = PTHREAD_MUTEX_INITIALIZER;
 
 //variables de estado para el menú
 enum Estado { MENU, INSTRUCCIONES, JUEGO, PUNTAJES, SALIR };
+
+// Variables de control
+bool juegoPausado = false;
+bool salirJuego = false;
+
 
 // =======================
 // Funciones del juego
@@ -211,26 +218,75 @@ void MostrarInstrucciones() {
 }
 
 void MostrarPuntajes() {
-    clear();
-    mvprintw(3, 10, "=== PUNTAJES DESTACADOS ===");
+    const char *opcionesModo[] = { "1 Jugador - Media", "1 Jugador - Rapida", "2 Jugadores" };
+    int seleccion = 0;
+    int numOpciones = 3;
 
-    vector<pair<string,int>> lista(puntajes.begin(), puntajes.end());
-    sort(lista.begin(), lista.end(), [](auto &a, auto &b) {
-        return a.second > b.second;
-    });
+    clear();
+    refresh();
+
+    int width = 40, height = 12;
+    int startx = (ancho / 2) - (width / 2);
+    int starty = 3;
+    WINDOW *win = newwin(height, width, starty, startx);
+    keypad(win, TRUE);
+
+    // Menú de selección de modo de puntajes
+    while (true) {
+        werase(win);
+        box(win, 0, 0);
+
+        wattron(win, COLOR_PAIR(8) | A_BOLD);
+        mvwprintw(win, 1, (width/2) - 8, "=== PUNTAJES ===");
+        wattroff(win, COLOR_PAIR(8) | A_BOLD);
+
+        for (int i = 0; i < numOpciones; i++) {
+            if (i == seleccion) {
+                wattron(win, A_REVERSE | COLOR_PAIR(9));
+                mvwprintw(win, 3 + i, 4, "%s", opcionesModo[i]);
+                wattroff(win, A_REVERSE | COLOR_PAIR(9));
+            } else {
+                mvwprintw(win, 3 + i, 4, "%s", opcionesModo[i]);
+            }
+        }
+
+        wattron(win, A_DIM);
+        mvwprintw(win, height - 2, 2, "Usa flechas arriba, abajo y ENTER");
+        wattroff(win, A_DIM);
+
+        wrefresh(win);
+
+        int tecla = wgetch(win);
+        switch (tecla) {
+            case KEY_UP: seleccion = (seleccion - 1 + numOpciones) % numOpciones; break;
+            case KEY_DOWN: seleccion = (seleccion + 1) % numOpciones; break;
+            case '\n': goto MostrarLista; // salir del menú
+        }
+    }
+
+MostrarLista:
+    werase(win);
+    wrefresh(win);
+    delwin(win);
+    clear();
+
+    vector<pair<string,int>> lista;
+    if (seleccion == 0) lista = vector<pair<string,int>>(puntajesMedia.begin(), puntajesMedia.end());
+    else if (seleccion == 1) lista = vector<pair<string,int>>(puntajesRapida.begin(), puntajesRapida.end());
+    else lista = vector<pair<string,int>>(puntajes2Jug.begin(), puntajes2Jug.end());
+
+    sort(lista.begin(), lista.end(), [](auto &a, auto &b) { return a.second > b.second; });
 
     int y = 5;
+    mvprintw(3, 10, "=== PUNTAJES DESTACADOS ===");
     for (auto &p : lista) {
         mvprintw(y++, 10, "%s - %d", p.first.c_str(), p.second);
     }
 
-    if (lista.empty()) {
-        mvprintw(5, 10, "No hay puntajes registrados.");
-    }
+    if (lista.empty()) mvprintw(5, 10, "No hay puntajes registrados.");
 
     mvprintw(y + 2, 10, "Presiona cualquier tecla para volver al menu...");
     refresh();
-
     flushinp();
     getch();
 }
@@ -287,6 +343,57 @@ int MostrarSeleccionJugadores() {
         }
     }
 }
+// =======================
+// Pantalla de selección de modo un jugador
+// =======================
+int modoUnJugador() {
+    const char *opciones[] = { "Velocidad media", "Velocidad rápida" };
+    int seleccion = 0;
+    int numOpciones = 2;
+
+    clear();
+    refresh();
+
+    int width = 30, height = 8;
+    int startx = (ancho / 2) - (width / 2);
+    int starty = 5;
+    WINDOW *win = newwin(height, width, starty, startx);
+    keypad(win, TRUE);
+
+    while (true) {
+        werase(win);
+        box(win, 0, 0);
+        mvwprintw(win, 1, (width/2) - 7, "Seleccione velocidad");
+
+        for (int i = 0; i < numOpciones; i++) {
+            if (i == seleccion) {
+                wattron(win, A_REVERSE | COLOR_PAIR(9));
+                mvwprintw(win, 3 + i, 4, "%s", opciones[i]);
+                wattroff(win, A_REVERSE | COLOR_PAIR(9));
+            } else {
+                mvwprintw(win, 3 + i, 4, "%s", opciones[i]);
+            }
+        }
+
+        wrefresh(win);
+
+        int tecla = wgetch(win);
+        switch (tecla) {
+            case KEY_UP:
+                seleccion = (seleccion - 1 + numOpciones) % numOpciones;
+                break;
+            case KEY_DOWN:
+                seleccion = (seleccion + 1) % numOpciones;
+                break;
+            case '\n':
+                werase(win);
+                wrefresh(win);
+                delwin(win);
+                return seleccion; // 0 = media, 1 = rápida
+        }
+    }
+}
+
 
 // =======================
 // Pantalla de Game Over
@@ -364,7 +471,8 @@ void* HiloPala1(void* arg) {
             if ((tecla == 'd' || tecla == 'D') && Pala1X < ancho - 6) Pala1X++;
             pthread_mutex_unlock(&mutexPala);
 
-            if (tecla == 'q' || tecla == 'Q') break;
+            if (tecla == 'p' || tecla == 'P') juegoPausado = !juegoPausado;
+            if (tecla == 'q' || tecla == 'Q') salirJuego = true;
         }
         usleep(5000);
     }
@@ -384,7 +492,8 @@ void* HiloPala2(void* arg) {
             }
             pthread_mutex_unlock(&mutexPala);
 
-            if (tecla == 'q' || tecla == 'Q') break;
+            if (tecla == 'p' || tecla == 'P') juegoPausado = !juegoPausado;
+            if (tecla == 'q' || tecla == 'Q') salirJuego = true;
         }
         usleep(5000);
     }
@@ -394,7 +503,7 @@ void* HiloPala2(void* arg) {
 // =======================
 // Juego principal
 // =======================
-Estado IniciarJuego() {
+Estado IniciarJuego(int modo) {
     // Jugador 1
     Pala1X = ancho / 2;
     Pala1Y = alto - 2;
@@ -425,6 +534,16 @@ Estado IniciarJuego() {
     pthread_create(&hiloPala2, nullptr, HiloPala2, nullptr);
 
     while (jugando) {
+        if (salirJuego) break;
+        
+        while (juegoPausado) {
+            usleep(100000); // espera mientras está pausado
+            pthread_mutex_lock(&mutexPantalla);
+            mvprintw(alto / 2, ancho / 2 - 5, "== PAUSA ==");
+            refresh();
+            pthread_mutex_unlock(&mutexPantalla);
+        }
+
         pthread_mutex_lock(&mutexPantalla);
         clear();
 
@@ -485,7 +604,12 @@ Estado IniciarJuego() {
         //if (bolaY >= alto - 1) dy = -dy;
         if (bolaY >= alto) jugando = false;
 
-        usleep(105000); 
+        int velocidadPelota = 105000; // predeterminado
+        if (numJugadoresGlobal == 1) {
+            if (modo == 0) velocidadPelota = 105000; // media
+            else velocidadPelota = 50000;           // rápida
+        }
+        usleep(velocidadPelota);
     }
 
     pthread_cancel(hiloPala1);
@@ -494,18 +618,19 @@ Estado IniciarJuego() {
     pthread_join(hiloPala2, nullptr);
 
     if (numJugadoresGlobal == 1) {
-        if (puntajes.find(jugador1) == puntajes.end() || puntaje1 > puntajes[jugador1]) {
-        puntajes[jugador1] = puntaje1;
+        if (modo == 0) { // media
+            if (puntajesMedia.find(jugador1) == puntajesMedia.end() || puntaje1 > puntajesMedia[jugador1])
+                puntajesMedia[jugador1] = puntaje1;
+        } else { // rápida
+            if (puntajesRapida.find(jugador1) == puntajesRapida.end() || puntaje1 > puntajesRapida[jugador1])
+            puntajesRapida[jugador1] = puntaje1;
         }
-    } else {
-        if (puntajes.find(jugador1) == puntajes.end() || puntaje1 > puntajes[jugador1]) {
-        puntajes[jugador1] = puntaje1;
-        }
-        if (puntajes.find(jugador2) == puntajes.end() || puntaje2 > puntajes[jugador2]) {
-        puntajes[jugador2] = puntaje2;
-        }   
+    } else { // 2 jugadores
+        if (puntajes2Jug.find(jugador1) == puntajes2Jug.end() || puntaje1 > puntajes2Jug[jugador1])
+            puntajes2Jug[jugador1] = puntaje1;
+        if (puntajes2Jug.find(jugador2) == puntajes2Jug.end() || puntaje2 > puntajes2Jug[jugador2])
+            puntajes2Jug[jugador2] = puntaje2;
     }
-
 
     Estado siguiente = MostrarGameOver(jugador1, puntaje1, jugador2, puntaje2);
     return siguiente;
@@ -558,10 +683,13 @@ int main() {
                 if (numJugadoresGlobal == 2)
                     jugador2 = PedirNombreJugador();
 
-                
                 nodelay(stdscr, TRUE);
+                int modo = 0;
+                if (numJugadoresGlobal == 1) {
+                    modo = modoUnJugador();
+                }
 
-                Estado siguiente = IniciarJuego();
+                Estado siguiente = IniciarJuego(modo);
 
                 if (siguiente == JUEGO) {
                     jugador1.clear();
