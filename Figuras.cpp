@@ -531,7 +531,7 @@ void* HiloPelota(void* arg) {
         }
 
         if (numJugadoresGlobal == 2) {
-            if (bx >= pala2Pos && bx <= pala2Pos + 6 && by == Pala2Y + 1) {
+            if (bx >= pala2Pos && bx <= pala2Pos + 6 && by == Pala2Y) {
                 ddy = -ddy;
                 ultimoJugador = 2;
             }
@@ -662,7 +662,7 @@ Estado IniciarJuego() {
     Pala1Y = alto - 2;
 
     if (numJugadoresGlobal == 2) {
-        Pala2X = ancho / 2;
+        Pala2X = ancho / 4;
         Pala2Y = alto - 2;
     }
 
