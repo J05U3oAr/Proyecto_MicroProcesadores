@@ -248,15 +248,21 @@ void MostrarGameOver(int puntajeFinal) {
     
     // Instrucción
     attron(A_DIM);
-    mvprintw(alto / 2 + 12, (ancho / 2) - 25, "Presiona cualquier tecla para volver al menu...");
+    mvprintw(alto / 2 + 12, (ancho / 2) - 20, "Presiona Q para volver al menu...");
     attroff(A_DIM);
     
     refresh();
     
-    // Esperar a que presione una tecla
+    // Esperar a que presione la tecla Q
     nodelay(stdscr, FALSE);
     flushinp();
-    getch();
+    int tecla;
+    while (true) {
+        tecla = getch();
+        if (tecla == 'q' || tecla == 'Q') {
+            break;
+        }
+    }
     nodelay(stdscr, TRUE);
 }
 
