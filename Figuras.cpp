@@ -20,6 +20,10 @@ struct bloque {
 const int ancho = 57;
 const int alto = 20;
 
+bool jugando = true;  
+int puntaje = 0;       
+
+
 int PalaX;
 int PalaY;
 int bolaX; 
@@ -246,6 +250,42 @@ void* HiloPala(void* arg) {
 }
 
 // =======================
+// Hilo de dibujo de la pantalla
+// =======================
+void* HiloDibujo(void* arg) {
+    while (jugando) {
+        pthread_mutex_lock(&mutexPantalla);
+        clear();
+
+        // para dibujar bordes
+        for (int x = 0; x < ancho; x++) {
+            mvprintw(0, x, "_");
+            mvprintw(alto, x, "_");
+        }
+        for (int y = 0; y <= alto; y++) {
+            mvprintw(y, 0, "|");
+            mvprintw(y, ancho, "|");
+        }
+
+        // se dibujan los elementos del juego
+        DibujarBloques();
+        DibujarPala();
+        DibujarPelota();
+
+        // se muestra el puntaje y el jugador
+        mvprintw(alto + 1, 5, "Jugador: %s  Puntaje: %d", 
+                 jugadorActual.c_str(), puntaje);
+
+        refresh();
+        pthread_mutex_unlock(&mutexPantalla);
+
+        usleep(50000); // ~20 fps
+    }
+    return nullptr;
+}
+
+
+// =======================
 // Juego principal
 // =======================
 void IniciarJuego() {
@@ -258,33 +298,14 @@ void IniciarJuego() {
 
     int dx = 1;
     int dy = -1; 
-    bool jugando = true; 
-    int puntaje = 0;
+    jugando = true;
+    puntaje = 0;
 
-    pthread_t hiloPala;
+    pthread_t hiloPala, hiloDibujo;
     pthread_create(&hiloPala, nullptr, HiloPala, nullptr);
+    pthread_create(&hiloDibujo, nullptr, HiloDibujo, nullptr);
 
     while (jugando) {
-        pthread_mutex_lock(&mutexPantalla);
-        clear();
-
-        for (int x = 0; x < ancho; x++) {
-            mvprintw(0, x, "_");
-            mvprintw(alto, x, "_");
-        }
-        for (int y = 0; y <= alto; y++) {
-            mvprintw(y, 0, "|");
-            mvprintw(y, ancho, "|");
-        }
-
-        DibujarBloques();
-        DibujarPala();
-        DibujarPelota();
-
-        mvprintw(alto + 1, 5, "Jugador: %s  Puntaje: %d", jugadorActual.c_str(), puntaje);
-
-        refresh();
-        pthread_mutex_unlock(&mutexPantalla);
 
         // Colisión con pala
         pthread_mutex_lock(&mutexPala);
@@ -300,27 +321,37 @@ void IniciarJuego() {
                 if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y + 1) {
                     b.destruido = true;
                     dy = -dy;
+                    puntaje += 10; // sumar puntos al romper
                 }
             }
         }
 
+        // Movimiento de la bola
         bolaX += dx;
         bolaY += dy;
 
+        // Rebotes
         if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
         if (bolaY <= 1) dy = -dy;
-        if (bolaY >= alto - 1) dy = -dy;
+        if (bolaY >= alto - 1) {
+            jugando = false; // perder si cae al fondo
+        }
 
-        usleep(105000); 
+        usleep(120000);
     }
 
+    // Finalizar hilos
     pthread_cancel(hiloPala);
+    pthread_cancel(hiloDibujo);
     pthread_join(hiloPala, nullptr);
+    pthread_join(hiloDibujo, nullptr);
 
+    // Guardar puntaje
     if (puntajes.find(jugadorActual) == puntajes.end() || puntaje > puntajes[jugadorActual]) {
         puntajes[jugadorActual] = puntaje;
     }
 }
+
 
 // =======================
 // Main
