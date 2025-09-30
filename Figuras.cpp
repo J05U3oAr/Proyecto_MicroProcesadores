@@ -28,13 +28,15 @@ int PalaX;
 int PalaY;
 int bolaX; 
 int bolaY;
+int dx, dy;
 vector<bloque> bloques;
 
 map<string, int> puntajes;
 string jugadorActual;
 
-// Mutex para proteger la pala y la pantalla
+// Mutex para proteger variables compartidas
 pthread_mutex_t mutexPala = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexBola = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexPantalla = PTHREAD_MUTEX_INITIALIZER;
 
 //variables de estado para el menú
@@ -85,8 +87,13 @@ void DibujarPala() {
 }
 
 void DibujarPelota() {
+    pthread_mutex_lock(&mutexBola);
+    int x = bolaX;
+    int y = bolaY;
+    pthread_mutex_unlock(&mutexBola);
+    
     attron(COLOR_PAIR(7) | A_BOLD);
-    mvprintw(bolaY, bolaX, "O");
+    mvprintw(y, x, "O");
     attroff(COLOR_PAIR(7) | A_BOLD);
 }
 
@@ -223,11 +230,54 @@ void MostrarPuntajes() {
     getch();
 }
 
+void MostrarGameOver(int puntajeFinal) {
+    clear();
+    
+    // Dibujar "GAME OVER" grande y en rojo parpadeante
+    attron(COLOR_PAIR(1) | A_BOLD | A_BLINK);
+    mvprintw(alto / 2 - 2, (ancho / 2) - 14, "  ____    _    __  __ _____");
+    mvprintw(alto / 2 - 1, (ancho / 2) - 14, " / ___|  / \\  |  \\/  | ____|");
+    mvprintw(alto / 2,     (ancho / 2) - 14, "| |  _  / _ \\ | |\\/| |  _|");
+    mvprintw(alto / 2 + 1, (ancho / 2) - 14, "| |_| |/ ___ \\| |  | | |___");
+    mvprintw(alto / 2 + 2, (ancho / 2) - 14, " \\____/_/   \\_\\_|  |_|_____|");
+    
+    mvprintw(alto / 2 + 4, (ancho / 2) - 14, "   ___  __     _______ ____");
+    mvprintw(alto / 2 + 5, (ancho / 2) - 14, "  / _ \\ \\ \\   / / ____|  _ \\");
+    mvprintw(alto / 2 + 6, (ancho / 2) - 14, " | | | | \\ \\ / /|  _| | |_) |");
+    mvprintw(alto / 2 + 7, (ancho / 2) - 14, " | |_| |  \\ V / | |___|  _ <");
+    mvprintw(alto / 2 + 8, (ancho / 2) - 14, "  \\___/    \\_/  |_____|_| \\_\\");
+    attroff(COLOR_PAIR(1) | A_BOLD | A_BLINK);
+    
+    // Mostrar puntaje final
+    attron(COLOR_PAIR(8) | A_BOLD);
+    mvprintw(alto / 2 + 10, (ancho / 2) - 10, "Puntaje final: %d", puntajeFinal);
+    attroff(COLOR_PAIR(8) | A_BOLD);
+    
+    // Instrucción
+    attron(A_DIM);
+    mvprintw(alto / 2 + 12, (ancho / 2) - 20, "Presiona Q para volver al menu...");
+    attroff(A_DIM);
+    
+    refresh();
+    
+    // Esperar a que presione la tecla Q
+    nodelay(stdscr, FALSE);
+    flushinp();
+    int tecla;
+    while (true) {
+        tecla = getch();
+        if (tecla == 'q' || tecla == 'Q') {
+            break;
+        }
+    }
+    nodelay(stdscr, TRUE);
+}
+
 // =======================
 // Hilo de movimiento de la pala
 // =======================
 void* HiloPala(void* arg) {
-    while (true) {
+    while (jugando) {
         pthread_mutex_lock(&mutexPantalla);
         int tecla = getch();
         pthread_mutex_unlock(&mutexPantalla);
@@ -242,9 +292,70 @@ void* HiloPala(void* arg) {
             if ((tecla == 'd' || tecla == 'D') && PalaX < ancho - 6) PalaX++;
             pthread_mutex_unlock(&mutexPala);
 
-            if (tecla == 'q' || tecla == 'Q') break;
+            if (tecla == 'q' || tecla == 'Q') {
+                jugando = false;
+                break;
+            }
         }
         usleep(5000);
+    }
+    return nullptr;
+}
+
+// =======================
+// Hilo de lógica de la pelota
+// =======================
+void* HiloPelota(void* arg) {
+    while (jugando) {
+        // Leer posición actual de la bola
+        pthread_mutex_lock(&mutexBola);
+        int bx = bolaX;
+        int by = bolaY;
+        int ddx = dx;
+        int ddy = dy;
+        pthread_mutex_unlock(&mutexBola);
+
+        // Colisión con pala
+        pthread_mutex_lock(&mutexPala);
+        int palaPos = PalaX;
+        pthread_mutex_unlock(&mutexPala);
+        
+        if (bx >= palaPos && bx <= palaPos + 6 && by == PalaY) {
+            ddy = -ddy;
+        }
+
+        // Colisión con bloques
+        for (auto &b : bloques) {
+            if (!b.destruido) {
+                if (bx >= b.x && bx <= b.x + 3 && by == b.y + 1) {
+                    b.destruido = true;
+                    ddy = -ddy;
+                    puntaje += 10;
+                    break;
+                }
+            }
+        }
+
+        // Actualizar posición
+        bx += ddx;
+        by += ddy;
+
+        // Rebotes en paredes
+        if (bx <= 1 || bx >= ancho - 1) ddx = -ddx;
+        if (by <= 1) ddy = -ddy;
+        if (by >= alto) {
+            jugando = false;
+        }
+
+        // Guardar nueva posición y dirección
+        pthread_mutex_lock(&mutexBola);
+        bolaX = bx;
+        bolaY = by;
+        dx = ddx;
+        dy = ddy;
+        pthread_mutex_unlock(&mutexBola);
+
+        usleep(120000);
     }
     return nullptr;
 }
@@ -291,65 +402,36 @@ void* HiloDibujo(void* arg) {
 void IniciarJuego() {
     PalaX = ancho / 2;
     PalaY = alto - 2;
+    
+    pthread_mutex_lock(&mutexBola);
     bolaX = ancho / 2 + 2;
     bolaY = alto - 3;
+    dx = 1;
+    dy = -1;
+    pthread_mutex_unlock(&mutexBola);
 
     InicializarBloques();
 
-    int dx = 1;
-    int dy = -1; 
     jugando = true;
     puntaje = 0;
 
-    pthread_t hiloPala, hiloDibujo;
+    pthread_t hiloPala, hiloPelota, hiloDibujo;
     pthread_create(&hiloPala, nullptr, HiloPala, nullptr);
+    pthread_create(&hiloPelota, nullptr, HiloPelota, nullptr);
     pthread_create(&hiloDibujo, nullptr, HiloDibujo, nullptr);
 
-    while (jugando) {
-
-        // Colisión con pala
-        pthread_mutex_lock(&mutexPala);
-        int palaPos = PalaX;
-        pthread_mutex_unlock(&mutexPala);
-        if (bolaX >= palaPos && bolaX <= palaPos + 6 && bolaY == PalaY) {
-            dy = -dy;
-        }
-
-        // Colisión con bloques
-        for (auto &b : bloques) {
-            if (!b.destruido) {
-                if (bolaX >= b.x && bolaX <= b.x + 3 && bolaY == b.y + 1) {
-                    b.destruido = true;
-                    dy = -dy;
-                    puntaje += 10; // sumar puntos al romper
-                }
-            }
-        }
-
-        // Movimiento de la bola
-        bolaX += dx;
-        bolaY += dy;
-
-        // Rebotes
-        if (bolaX <= 1 || bolaX >= ancho - 1) dx = -dx;
-        if (bolaY <= 1) dy = -dy;
-        if (bolaY >= alto) {
-            jugando = false; // perder si cae al fondo
-        }
-
-        usleep(120000);
-    }
-
-    // Finalizar hilos
-    pthread_cancel(hiloPala);
-    pthread_cancel(hiloDibujo);
+    // Esperar a que termine el juego
     pthread_join(hiloPala, nullptr);
+    pthread_join(hiloPelota, nullptr);
     pthread_join(hiloDibujo, nullptr);
 
     // Guardar puntaje
     if (puntajes.find(jugadorActual) == puntajes.end() || puntaje > puntajes[jugadorActual]) {
         puntajes[jugadorActual] = puntaje;
     }
+
+    // Mostrar pantalla de Game Over
+    MostrarGameOver(puntaje);
 }
 
 
@@ -407,6 +489,7 @@ int main() {
 
     endwin();
     pthread_mutex_destroy(&mutexPala);
+    pthread_mutex_destroy(&mutexBola);
     pthread_mutex_destroy(&mutexPantalla);
     return 0;
 }
